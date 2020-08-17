@@ -35,6 +35,20 @@ function migrate_islandnarratives_migrate_api() {
 
 
   );
+
+
+  // Register the file migration.
+  // source_dir needs to be adjusted to match your file system.
+  $api['migrations']['IslandNarrativesFile'] = $common_arguments + array(
+      'machine_name' => 'islandnarrativesfile',
+      'description' => t('Import Island Narratives Drupal 6 files'),
+      'class_name' => 'DrupalFile6Migration',
+      //'user_migration' => 'User',
+      'default_uid' => 1,
+      'source_dir' => DRUPAL_ROOT . '/../cap-files',
+      'destination_dir' => 'public://narratives',
+    );
+
     /*
     'IslandNarrativesFile' => array(
       'class_name' => 'DrupalFile6Migration',
