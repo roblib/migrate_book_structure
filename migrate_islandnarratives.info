@@ -1,0 +1,9 @@
+name = "Migrate IslandNarratives"
+description = "IslandNarratives migration data."
+package = "Migration"
+core = 7.x
+dependencies[] = taxonomy
+dependencies[] = file
+dependencies[] = migrate
+
+files[] = islandnarratives.inc
