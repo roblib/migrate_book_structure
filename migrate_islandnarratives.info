@@ -7,3 +7,5 @@ dependencies[] = file
 dependencies[] = migrate
 
 files[] = islandnarratives.inc
+files[] = bookpage.inc
+files[] = node.inc

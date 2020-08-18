@@ -49,6 +49,14 @@ function migrate_islandnarratives_migrate_api() {
       'destination_dir' => 'public://narratives',
     );
 
+  $api['migrations']['IslandNarrativesBookPage'] = $common_arguments + array(
+      'class_name' => 'IslandNarrativesBookPageMigration',
+      'description' => t('Migration of book page nodes.'),
+      'source_type' => 'book',
+      'destination_type' => 'book_page',
+
+  );
+
     /*
     'IslandNarrativesFile' => array(
       'class_name' => 'DrupalFile6Migration',
