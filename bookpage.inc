@@ -58,7 +58,7 @@ class IslandNarrativesBookPageMigration extends DrupalNode6Migration {
    *   Nid of book in source database to lookup.
    */
   protected function lookupMigratedBook($source_book_nid) {
-    $dest_book_nid = parent::handleSourceMigration('IslandNarrativesBookPage', $source_book_nid);
+    $dest_book_nid = parent::handleSourceMigration('IslandNarrativesBookPage`', $source_book_nid);
     return $dest_book_nid;
   }
 

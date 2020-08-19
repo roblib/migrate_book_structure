@@ -5,3 +5,8 @@
  *
  * Island Narratives D7 Migration.
  */
+
+function migrate_islandnarratives_post_migrate_book_hierarchy() {
+
+
+}
