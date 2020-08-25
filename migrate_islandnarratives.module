@@ -24,10 +24,15 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
     ->fields('m', array('sourceid1', 'destid1'))
     ->execute()->fetchAll();
   $map = array();
+<<<<<<< HEAD
   $reverse_map = array();
   foreach ($map_result as $map_value) {
     $map[$map_value->destid1] = $map_value->sourceid1;
     $reverse_map[$map_value->sourceid1] = $map_value->destid1;
+=======
+  foreach ($map_result as $map_value) {
+    $map[$map_value->destid1] = $map_value->sourceid1;
+>>>>>>> 2c792190d967693ed703166b9b771e0dae70c89e
   }
 
   $source_books_results = Database::getConnection('default', 'cap')
@@ -35,7 +40,9 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
     ->fields('b', array('nid', 'bid'))
     ->execute()->fetchAll();
   $source_books = array();
+
   $book_pages = array();
+
   foreach($source_books_results as $book_result) {
     $book_pages[$book_result->nid] = $book_result->bid;
     // A list of pages for each book.
@@ -65,6 +72,7 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
 
 
   }
+
 
 
   foreach ($r as $record) {
