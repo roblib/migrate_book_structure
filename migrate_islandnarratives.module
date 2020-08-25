@@ -24,27 +24,23 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
     ->fields('m', array('sourceid1', 'destid1'))
     ->execute()->fetchAll();
   $map = array();
-<<<<<<< HEAD
   $reverse_map = array();
   foreach ($map_result as $map_value) {
     $map[$map_value->destid1] = $map_value->sourceid1;
     $reverse_map[$map_value->sourceid1] = $map_value->destid1;
-=======
-  foreach ($map_result as $map_value) {
-    $map[$map_value->destid1] = $map_value->sourceid1;
->>>>>>> 2c792190d967693ed703166b9b771e0dae70c89e
   }
 
   $source_books_results = Database::getConnection('default', 'cap')
     ->select('book', 'b')
-    ->fields('b', array('nid', 'bid'))
+    ->fields('b', array('mlid', 'nid', 'bid'))
     ->execute()->fetchAll();
   $source_books = array();
 
-  $book_pages = array();
-
+  $source_book_pages_by_nid = array();
+  $source_book_pages_by_mlid = array();
   foreach($source_books_results as $book_result) {
-    $book_pages[$book_result->nid] = $book_result->bid;
+    $source_book_pages_by_nid[$book_result->nid] = ['bid' => $book_result->bid, 'mlid' => $book_result->mlid];
+    $source_book_pages_by_mlid[$book_result->mlid] = ['nid' => $book_result->nid, 'bid' => $book_result->bid];
     // A list of pages for each book.
     $source_books[$book_result->bid][] = $book_result->nid;
   }
@@ -61,15 +57,24 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
   $target_book_pages = array_keys($map);
 
   foreach ($target_book_pages as $target_book_page) {
-    $target_book_node = node_load($target_book_page);
-    $target_book_node->book['nid'] = $target_book_page;
-    $target_book_node->book['bid'] =
+    $target_book_page_node = node_load($target_book_page);
+    $target_book_page_node->book['nid'] = $target_book_page;
+
     $source_page = $map[$target_book_page];
+    $source_mlid = $source_book_pages_by_nid[$source_page]['mlid'];
+    $target_book_page_node->book['weight'] = $source_menu_links->{$source_mlid}['weight'];
     // get the parent of the source page.
-    $source_parent = $source_menu_links[$source_book_page]['plid'];
-    $target_parent = $reverse_map[$source_parent];
+    $source_parent_menu_link = $source_menu_links->{$source_mlid}['plid'];
+    $source_parent_book_page = $source_menu_links['plid']['nid'];
+    $target_parent_book_page = $reverse_map[$source_parent_book_page];
+    $target_book_page_node->book['plid'] = $target_parent_book_page;
+    _book_update_outline($target_book_page_node);
+    node_save($target_book_page_node);
+    // Get target parent
 
 
+
+    //$target_book_node->book['weight'] = $source_menu_links[$source_];
 
   }
 
