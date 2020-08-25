@@ -6,7 +6,68 @@
  * Island Narratives D7 Migration.
  */
 
-function migrate_islandnarratives_post_migrate_book_hierarchy() {
+
+function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
+  $query = Database::getConnection('default', "cap")
+    ->select('node', 'n')
+    ->fields('n', array('nid', 'vid', 'language', 'title',
+      'uid', 'status', 'created', 'changed', 'comment', 'promote',
+      'moderate', 'sticky', 'tnid', 'translate'))
+    ->condition('n.type', 'book')
+    ->orderBy('n.changed');
+  $query->innerJoin('node_revisions', 'nr', 'n.vid=nr.vid');
+  $query->fields('nr', array('body', 'teaser', 'format'));
+  $r = $query->execute();
+
+  $map_result = Database::getConnection('default', 'default')
+  ->select('migrate_map_ae190901dnodebook', 'm')
+    ->fields('m', array('sourceid1', 'destid1'))
+    ->execute()->fetchAll();
+  $map = array();
+  $reverse_map = array();
+  foreach ($map_result as $map_value) {
+    $map[$map_value->destid1] = $map_value->sourceid1;
+    $reverse_map[$map_value->sourceid1] = $map_value->destid1;
+  }
+
+  $source_books_results = Database::getConnection('default', 'cap')
+    ->select('book', 'b')
+    ->fields('b', array('nid', 'bid'))
+    ->execute()->fetchAll();
+  $source_books = array();
+  $book_pages = array();
+  foreach($source_books_results as $book_result) {
+    $book_pages[$book_result->nid] = $book_result->bid;
+    // A list of pages for each book.
+    $source_books[$book_result->bid][] = $book_result->nid;
+  }
+  $menu_links_results = Database::getConnection('default', 'cap')
+  ->select('menu_links', 'ml')
+  ->fields('ml', array('mlid', 'plid', 'weight', 'depth'))
+  ->execute()->fetchAll();
+
+  $source_menu_links = array();
+  foreach ($menu_links_results as $menu_link_result) {
+    $source_menu_links[$menu_link_result->mlid] = $menu_link_result;
+  }
+
+  $target_book_pages = array_keys($map);
+
+  foreach ($target_book_pages as $target_book_page) {
+    $target_book_node = node_load($target_book_page);
+    $target_book_node->book['nid'] = $target_book_page;
+    $target_book_node->book['bid'] =
+    $source_page = $map[$target_book_page];
+    // get the parent of the source page.
+    $source_parent = $source_menu_links[$source_book_page]['plid'];
+    $target_parent = $reverse_map[$source_parent];
 
 
+
+  }
+
+
+  foreach ($r as $record) {
+
+  }
 }
