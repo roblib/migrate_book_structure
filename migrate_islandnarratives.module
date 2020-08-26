@@ -20,7 +20,7 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
   $r = $query->execute();
 
   $map_result = Database::getConnection('default', 'default')
-  ->select('migrate_map_ae190901dnodebook', 'm')
+    ->select('migrate_map_ae190901dnodebook', 'm')
     ->fields('m', array('sourceid1', 'destid1'))
     ->execute()->fetchAll();
   $map = array();
@@ -38,16 +38,16 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
 
   $source_book_pages_by_nid = array();
   $source_book_pages_by_mlid = array();
-  foreach($source_books_results as $book_result) {
+  foreach ($source_books_results as $book_result) {
     $source_book_pages_by_nid[$book_result->nid] = ['bid' => $book_result->bid, 'mlid' => $book_result->mlid];
     $source_book_pages_by_mlid[$book_result->mlid] = ['nid' => $book_result->nid, 'bid' => $book_result->bid];
     // A list of pages for each book.
     $source_books[$book_result->bid][] = $book_result->nid;
   }
   $menu_links_results = Database::getConnection('default', 'cap')
-  ->select('menu_links', 'ml')
-  ->fields('ml', array('mlid', 'plid', 'weight', 'depth'))
-  ->execute()->fetchAll();
+    ->select('menu_links', 'ml')
+    ->fields('ml', array('mlid', 'plid', 'weight', 'depth'))
+    ->execute()->fetchAll();
 
   $source_menu_links = array();
   foreach ($menu_links_results as $menu_link_result) {
@@ -56,31 +56,72 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
 
   $target_book_pages = array_keys($map);
 
-  foreach ($target_book_pages as $target_book_page) {
-    $target_book_page_node = node_load($target_book_page);
-    $target_book_page_node->book['nid'] = $target_book_page;
+  $max_depth = _islandnarratives_book_get_max_depth();
+  // Loop through and go from top level down to add child pages.
+  $target_pages_level = array();
 
-    $source_page = $map[$target_book_page];
-    $source_mlid = $source_book_pages_by_nid[$source_page]['mlid'];
-    $target_book_page_node->book['weight'] = $source_menu_links->{$source_mlid}['weight'];
-    // get the parent of the source page.
-    $source_parent_menu_link = $source_menu_links->{$source_mlid}['plid'];
-    $source_parent_book_page = $source_menu_links['plid']['nid'];
+
+  for ($i = 0; $i <= $max_depth - 1; $i++) {
+    // Get all books at depth.
+    $pages_at_depth_query->addField('b', 'bid', 'book_id'); = Database::getConnection('default', 'cap')
+      ->select('menu_links', 'ml')
+      ->fields('ml', array('mlid', 'plid', 'depth'))
+      ->condition('depth', $depth)
+      ->condition('menu_name', 'book-toc-%', 'LIKE')
+      ->join('book', 'b', 'ml.mlid = b.mlid');
+    $pages_at_depth_query->addField('b', 'bid', 'book_id');
+    $books_at_depth = $pages_at_depth_query->execute()->fetchAll();
+    foreach ($books_at_depth as $source_book) {
+      $target_pages_level[] = $reverse_map[$source_book];
+    }
+    // Get pages at depth $i.
+
+    _construct_book_gather_children($target_book_pages, $map, $source_book_pages_by_nid, $source_menu_links, $reverse_map, $i);
+  }
+
+
+
+
+}
+
+function _islandnarratives_book_get_max_depth() {
+  $max_depth_query = Database::getConnection('default', 'cap')
+    ->select('menu_links', 'ml')
+    //->fields('ml', array('depth'))
+    ->condition('menu_name', 'book-toc-%', 'LIKE');
+  $max_depth_query->addExpression('MAX(depth)');
+
+  return $max_depth_query->execute()->fetchAll()[0]->expression;
+}
+
+/**
+ * @param array $target_book_pages
+ * @param array $map
+ * @param array $source_book_pages_by_nid
+ * @param array $source_menu_links
+ * @param array $reverse_map
+ * @throws Exception
+ */
+function _construct_book_gather_children(array $target_book_pages, array $map, array $source_book_pages_by_nid, array $source_menu_links, array $reverse_map, $depth) {
+
+  $target_book_page_node = node_load($target_book_page);
+  $target_book_page_node->book['nid'] = $target_book_page;
+
+  $source_page = $map[$target_book_page];
+  $source_bid = $source_book_pages_by_nid['bid'];
+  $target_book_page_node->book['bid'] = $reverse_map[$source_bid];
+  //$source_mlid = $source_book_pages_by_nid[$source_page]['mlid'];
+  $target_book_page_node->book['weight'] = $source_menu_links['source_mlid']->weight;
+  // get the parent of the source page.
+  if ($depth > 0) {
+    $source_parent_menu_link = $source_menu_links['source_mlid']->plid;
+    $source_parent_book_page = $source_menu_links[$source_parent_menu_link]['nid'];
     $target_parent_book_page = $reverse_map[$source_parent_book_page];
     $target_book_page_node->book['plid'] = $target_parent_book_page;
-    _book_update_outline($target_book_page_node);
-    node_save($target_book_page_node);
-    // Get target parent
-
-
-
-    //$target_book_node->book['weight'] = $source_menu_links[$source_];
-
   }
+  _book_update_outline($target_book_page_node);
+  node_save($target_book_page_node);
 
 
-
-  foreach ($r as $record) {
-
-  }
 }
+
