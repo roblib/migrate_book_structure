@@ -61,27 +61,26 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
   $target_pages_level = array();
 
 
-  for ($i = 0; $i <= $max_depth - 1; $i++) {
-    // Get all books at depth.
-    $pages_at_depth_query->addField('b', 'bid', 'book_id'); = Database::getConnection('default', 'cap')
+  for ($depth = 1; $depth <= $max_depth; $depth++) {
+
+    $pages_at_depth_query = Database::getConnection('default', 'cap')
       ->select('menu_links', 'ml')
-      ->fields('ml', array('mlid', 'plid', 'depth'))
+      ->fields('ml', array('mlid', 'plid', 'depth', 'weight'))
       ->condition('depth', $depth)
-      ->condition('menu_name', 'book-toc-%', 'LIKE')
-      ->join('book', 'b', 'ml.mlid = b.mlid');
-    $pages_at_depth_query->addField('b', 'bid', 'book_id');
-    $books_at_depth = $pages_at_depth_query->execute()->fetchAll();
-    foreach ($books_at_depth as $source_book) {
-      $target_pages_level[] = $reverse_map[$source_book];
+      ->condition('menu_name', 'book-toc-%', 'LIKE');
+    $pages_at_depth_query->join('book', 'b', 'ml.mlid = b.mlid');
+    $pages_at_depth_query->addField('b', 'bid', 'source_book_id');
+    $pages_at_depth_query->addField('b', 'nid', 'source_book_page_id');
+
+    $pages_at_depth = $pages_at_depth_query->execute()->fetchAll();
+    // You can't do a join across two database connections.
+    foreach ($pages_at_depth as $j => $source_book) {
+
+      $target_book_nid = $reverse_map[$source_book->source_book_page_id];
+      $target_book_bid = $reverse_map[$source_book->source_book_id];
+      _construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, $map, $source_book_pages_by_nid, $source_menu_links, $reverse_map, $depth);
     }
-    // Get pages at depth $i.
-
-    _construct_book_gather_children($target_book_pages, $map, $source_book_pages_by_nid, $source_menu_links, $reverse_map, $i);
   }
-
-
-
-
 }
 
 function _islandnarratives_book_get_max_depth() {
@@ -102,26 +101,31 @@ function _islandnarratives_book_get_max_depth() {
  * @param array $reverse_map
  * @throws Exception
  */
-function _construct_book_gather_children(array $target_book_pages, array $map, array $source_book_pages_by_nid, array $source_menu_links, array $reverse_map, $depth) {
+function _construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, array $map, array $source_book_pages_by_nid, array $source_menu_links, array $reverse_map, $depth) {
 
-  $target_book_page_node = node_load($target_book_page);
-  $target_book_page_node->book['nid'] = $target_book_page;
+  $target_book_page_node = node_load($target_book_nid);
+  $target_book_page_node->book['nid'] = $target_book_nid;
 
-  $source_page = $map[$target_book_page];
-  $source_bid = $source_book_pages_by_nid['bid'];
-  $target_book_page_node->book['bid'] = $reverse_map[$source_bid];
+  $target_book_page_node->book['bid'] = $target_book_bid;
   //$source_mlid = $source_book_pages_by_nid[$source_page]['mlid'];
-  $target_book_page_node->book['weight'] = $source_menu_links['source_mlid']->weight;
+  $target_book_page_node->book['weight'] = $source_book->weight;
   // get the parent of the source page.
-  if ($depth > 0) {
-    $source_parent_menu_link = $source_menu_links['source_mlid']->plid;
-    $source_parent_book_page = $source_menu_links[$source_parent_menu_link]['nid'];
+  if ($depth > 1) {
+
+    $source_parent_book_page = $source_menu_links[$source_book->plid]['nid'];
     $target_parent_book_page = $reverse_map[$source_parent_book_page];
-    $target_book_page_node->book['plid'] = $target_parent_book_page;
+    // Query book table to get target mlid.
+    $target_parent_book_mlid_result = Database::getConnection('default', 'd7')
+      ->select('book', 'b')
+      ->fields('mlid', 'nid')
+      ->condition('nid', $target_parent_book_age, '=')
+      ->execute()->fetchAll();
+
+    // Get parent menu link id from target book table.
+    $target_book_page_node->book['plid'] = $target_parent_book_mlid_result[0]->mlid;
   }
   _book_update_outline($target_book_page_node);
   node_save($target_book_page_node);
-
 
 }
 
