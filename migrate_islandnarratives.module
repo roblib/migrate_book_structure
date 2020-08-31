@@ -8,31 +8,10 @@
 
 
 function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
-  $query = Database::getConnection('default', "cap")
-    ->select('node', 'n')
-    ->fields('n', array('nid', 'vid', 'language', 'title',
-      'uid', 'status', 'created', 'changed', 'comment', 'promote',
-      'moderate', 'sticky', 'tnid', 'translate'))
-    ->condition('n.type', 'book')
-    ->orderBy('n.changed');
-  $query->innerJoin('node_revisions', 'nr', 'n.vid=nr.vid');
-  $query->fields('nr', array('body', 'teaser', 'format'));
-  $r = $query->execute();
 
-  $map = array();
-  $reverse_map = array();
+  list($map, $reverse_map) = islandnarratives_migrate_get_node_map();
 
-  foreach (array('migrate_map_ae190901dnodepage', 'migrate_map_ae190901dnodebook') as $table) {
-    $map_result = Database::getConnection('default', 'default')
-      ->select($table, 'm')
-      ->fields('m', array('sourceid1', 'destid1'))
-      ->execute()->fetchAll();
-    foreach ($map_result as $map_value) {
-      $map[$map_value->destid1] = $map_value->sourceid1;
-      $reverse_map[$map_value->sourceid1] = $map_value->destid1;
-    }
-  }
-  $source_books_results = Database::getConnection('default', 'cap')
+  $source_books_results = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
     ->select('book', 'b')
     ->fields('b', array('mlid', 'nid', 'bid'))
     ->execute()->fetchAll();
@@ -46,7 +25,7 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
     // A list of pages for each book.
     $source_books[$book_result->bid][] = $book_result->nid;
   }
-  $menu_links_results_query = Database::getConnection('default', 'cap')
+  $menu_links_results_query = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
     ->select('menu_links', 'ml')
     ->fields('ml', array('mlid', 'plid', 'weight', 'depth'));
   $menu_links_results_query->join('book', 'b', 'ml.mlid = b.mlid');
@@ -64,7 +43,7 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
 
   for ($depth = 1; $depth <= $max_depth; $depth++) {
 
-    $pages_at_depth_query = Database::getConnection('default', 'cap')
+    $pages_at_depth_query = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
       ->select('menu_links', 'ml')
       ->fields('ml', array('mlid', 'plid', 'depth', 'weight'))
       ->condition('depth', $depth)
@@ -84,8 +63,30 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
   }
 }
 
+/**
+ * @return array
+ */
+function islandnarratives_migrate_get_node_map() {
+  $map = array();
+  $reverse_map = array();
+
+  $content_types = explode(',', drush_get_option('types', 'page,book'));
+
+  foreach ($content_types as $content_type) {
+    $map_result = Database::getConnection('default', 'default')
+      ->select('migrate_map_' . drush_get_option('migration') . 'node' . $content_type, 'm')
+      ->fields('m', array('sourceid1', 'destid1'))
+      ->execute()->fetchAll();
+    foreach ($map_result as $map_value) {
+      $map[$map_value->destid1] = $map_value->sourceid1;
+      $reverse_map[$map_value->sourceid1] = $map_value->destid1;
+    }
+  }
+  return array($map, $reverse_map);
+}
+
 function _islandnarratives_book_get_max_depth() {
-  $max_depth_query = Database::getConnection('default', 'cap')
+  $max_depth_query = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
     ->select('menu_links', 'ml')
     //->fields('ml', array('depth'))
     ->condition('menu_name', 'book-toc-%', 'LIKE');
@@ -130,3 +131,17 @@ function _construct_book_node_with_parent($source_book, $target_book_bid, $targe
 
 }
 
+/**
+ * Scan node body content for absolute links to the old site
+ * and do a table lookup to replace them with relative internal
+ * links to the migrated nodes.
+ */
+function drush_migrate_islandnarratives_post_migrate_internal_links() {
+  // Construct a lookup map from the migration tables.
+  list($map, $reverse_map) = islandnarratives_migrate_get_node_map();
+
+  foreach ($map as $nid) {
+    $node = node_load($nid);
+    $body_items = field_get_items('node', $node, 'body');
+  }
+}
