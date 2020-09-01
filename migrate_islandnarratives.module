@@ -77,7 +77,7 @@ function islandnarratives_migrate_get_node_map() {
       ->select('migrate_map_' . drush_get_option('migration') . 'node' . $content_type, 'm')
       ->fields('m', array('sourceid1', 'destid1'))
       ->execute()->fetchAll();
-    foreach ($map_result as $map_value) {
+    foreach ($map_result as $map_value) {h
       $map[$map_value->destid1] = $map_value->sourceid1;
       $reverse_map[$map_value->sourceid1] = $map_value->destid1;
     }
@@ -140,8 +140,26 @@ function drush_migrate_islandnarratives_post_migrate_internal_links() {
   // Construct a lookup map from the migration tables.
   list($map, $reverse_map) = islandnarratives_migrate_get_node_map();
 
-  foreach ($map as $nid) {
+  foreach ($map as $nid => $source_nid) {
     $node = node_load($nid);
     $body_items = field_get_items('node', $node, 'body');
+
+    // Search for a relative or absolute link to node
+    // Replace with internal link in /node/xxx format.
+    $value = $body_items[0]['value'];
+
+    $source_doc = new DomDocument();
+    $source_doc->loadHTML($value);
+
+    foreach ($source_doc->getElementsByTagName('a') as $source_link) {
+      $source_url = $source_link->getAttribute('href');
+
+      // Link is to an Islandora object
+      $pos = strpos($source_url, 'fedora/repository/');
+      if ($pos >= 0) {
+        $pos += strlen('fedora/repository/');
+        $replacement_url = 'islandora/object/' . substr($source_url, $pos);
+      }
+    }
   }
 }
