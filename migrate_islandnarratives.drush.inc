@@ -10,6 +10,7 @@ function migrate_islandnarratives_drush_command() {
       'migration' => 'Machine name of migration to repair.',
       'dbconnection' => 'Source database connection in settings.php',
       'types' => 'Comma-separated list of content type machine names',
+      'dry-run' => 'Set to TRUE to show changes to be made without altering the target database',
     ),
     'drupal dependencies' => array('migrate', 'book'),
     'aliases' => array('minpbh'),
@@ -22,6 +23,7 @@ function migrate_islandnarratives_drush_command() {
     'options' => array(
       'migration' => 'Machine name of migration to repair.',
       'types' => 'Comma-separated list of content type machine names',
+      'dry-run' => 'Set to TRUE to display changes to be made without writing to the database',
     ),
     'drupal dependencies' => array('migrate'),
     'aliases' => array('minpil'),
