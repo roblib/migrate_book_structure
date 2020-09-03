@@ -158,9 +158,16 @@ function drush_migrate_islandnarratives_post_migrate_internal_links() {
 
 /**
  * @param $value
+ *   String to replace links in.
+ * @param $reverse_map
+ *   Map of source nids to nids on the new site.
  * @return DomDocument
  */
 function _migrate_islandnarratives_replace_urls_in_text($value, $reverse_map) {
+  if (empty($value)) {
+    return $value;
+  }
+
   $source_doc = new DomDocument();
   $source_doc->loadHTML($value);
 
@@ -169,7 +176,7 @@ function _migrate_islandnarratives_replace_urls_in_text($value, $reverse_map) {
 
     // Link is to an Islandora object
     $repo_slug = strpos($source_url, 'fedora/repository/');
-    $node_slug = strpos($source_url, 'node/');
+    $node_slug = strpos($source_url, 'cap/node/');
 
     if ($repo_slug !== FALSE) {
       $repo_slug += strlen('fedora/repository/');
@@ -180,16 +187,25 @@ function _migrate_islandnarratives_replace_urls_in_text($value, $reverse_map) {
       // First part of Islandora URL
       // DSID of '-' is a placeholder for jsut linking to the object.
       $replacement_url = 'islandora/object/' . $pid . ($dsid == '-' || $dsid == null ? '' : '/datastream/' . $dsid . '/view');
-      // Need to extract the PID and DSID to construct datastream download URL.
-
-
       $source_link->setAttribute('href', $replacement_url);
       drupal_set_message("Replace $source_url with $replacement_url.", "status");
     }
     elseif ($node_slug !== FALSE) {
-      $node_slug += strlen('/node/');
+      $node_slug += strlen('cap/node/');
       $path_parts = explode('/', substr($source_url, $node_slug));
-
+      $path_parts[0] = $reverse_map[$path_parts[0]];
+      $replacement_url = 'node/' . implode('/', $path_parts);
+      $source_link->setAttribute('href', $replacement_url);
+      drupal_set_message("Replace $source_url with $replacement_url.", "status");
+    }
+    elseif (strpos($source_url, 'http://vre2.upei.ca/cap/') !== FALSE) {
+      // Link to CAP site taht is not already covered, assume it's an alias.
+      $replacement_url = substr($source_url, strlen('http://vre2.upei.ca/cap/'));
+      $source_link->setAttribute('href', $replacement_url);
+      drupal_set_message("Replace $source_url with $replacement_url.", "status");
+    }
+    else {
+      drupal_set_message('Unprocessed link URL: ' . $source_url, 'status');
     }
   }
   return $source_doc->saveHTML();
