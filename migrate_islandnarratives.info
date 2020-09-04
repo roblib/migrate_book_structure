@@ -3,6 +3,7 @@ description = "IslandNarratives migration data."
 package = "Migration"
 core = 7.x
 dependencies[] = taxonomy
+dependencies[] = book
 dependencies[] = file
 dependencies[] = migrate
 dependencies[] = migrate_d2d
