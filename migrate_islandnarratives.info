@@ -5,7 +5,7 @@ core = 7.x
 dependencies[] = taxonomy
 dependencies[] = file
 dependencies[] = migrate
-
+dependencies[] = migrate_d2d
 files[] = islandnarratives.inc
 files[] = bookpage.inc
 files[] = node.inc
