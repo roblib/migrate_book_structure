@@ -204,6 +204,20 @@ function _migrate_islandnarratives_replace_urls_in_text($value, $reverse_map) {
       $source_link->setAttribute('href', $replacement_url);
       drupal_set_message("Replace $source_url with $replacement_url.", "status");
     }
+    elseif (strpos($source_url, 'http://www.islandlives.ca/fedora/ilives/') !== FALSE) {
+      // Update outdated Island Lives links
+      $pid = explode('/', substr($source_url, strlen('http://www.islandlives.ca/fedora/ilives/')))[0];
+      $replacement_url = 'https://www.islandlives.ca/islandora/object/' . $pid;
+      $source_link->setAttribute('href', $replacement_url);
+      drupal_set_message("Replace $source_url with $replacement_url.", "status");
+    }
+    elseif (strpos($source_url, 'http://www.islandlives.ca/fedora/ilives_book_viewer/') !== FALSE) {
+      // Update outdated Island Lives links
+      $pid = explode('/', substr($source_url, strlen('http://www.islandlives.ca/fedora/ilives_book_viewer/')))[0];
+      $replacement_url = 'https://www.islandlives.ca/islandora/object/' . $pid;
+      $source_link->setAttribute('href', $replacement_url);
+      drupal_set_message("Replace $source_url with $replacement_url.", "status");
+    }
     else {
       drupal_set_message('Unprocessed link URL: ' . $source_url, 'status');
     }
