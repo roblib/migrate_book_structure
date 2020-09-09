@@ -3,4 +3,4 @@ description = "Post-igration re-construct book structure."
 package = "Migration"
 core = 7.x
 dependencies[] = book
-dependencies[] = migrate_d2d
+dependencies[] = migrate

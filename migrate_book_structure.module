@@ -11,7 +11,7 @@ function drush_migrate_book_structure_post_migrate_book_hierarchy() {
 
   list($map, $reverse_map) = _migrate_book_structure_get_node_map();
 
-  $source_books_results = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
+  $source_books_results = Database::getConnection('default', drush_get_option('dbconnection'))
     ->select('book', 'b')
     ->fields('b', array('mlid', 'nid', 'bid'))
     ->execute()->fetchAll();
@@ -25,7 +25,7 @@ function drush_migrate_book_structure_post_migrate_book_hierarchy() {
     // A list of pages for each book.
     $source_books[$book_result->bid][] = $book_result->nid;
   }
-  $menu_links_results_query = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
+  $menu_links_results_query = Database::getConnection('default', drush_get_option('dbconnection'))
     ->select('menu_links', 'ml')
     ->fields('ml', array('mlid', 'plid', 'weight', 'depth'));
   $menu_links_results_query->join('book', 'b', 'ml.mlid = b.mlid');
@@ -58,7 +58,7 @@ function drush_migrate_book_structure_post_migrate_book_hierarchy() {
 
       $target_book_nid = $reverse_map[$source_book->source_book_page_id];
       $target_book_bid = $reverse_map[$source_book->source_book_id];
-      _migrate_book_structure_construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, $map, $source_book_pages_by_nid, $source_menu_links, $reverse_map, $depth);
+      _migrate_book_structure_construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, $source_menu_links, $reverse_map, $depth);
     }
   }
 }
@@ -85,10 +85,15 @@ function _migrate_book_structure_get_node_map() {
   return array($map, $reverse_map);
 }
 
+/**
+ * Return the deepest level that any book hierarchy goes in the site.
+ *
+ * @return mixed
+ *   The depth, starting from 1.
+ */
 function _migrate_book_structure_get_max_depth() {
   $max_depth_query = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
     ->select('menu_links', 'ml')
-    //->fields('ml', array('depth'))
     ->condition('menu_name', 'book-toc-%', 'LIKE');
   $max_depth_query->addExpression('MAX(depth)');
 
@@ -96,14 +101,17 @@ function _migrate_book_structure_get_max_depth() {
 }
 
 /**
- * @param array $target_book_pages
- * @param array $map
- * @param array $source_book_pages_by_nid
+ * Populate the book node's parent information in the appropriate menu.
+ *
+ * @param $source_book
+ * @param $target_book_bid
+ * @param $target_book_nid
  * @param array $source_menu_links
  * @param array $reverse_map
+ * @param $depth
  * @throws Exception
  */
-function _migrate_book_structure_construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, array $map, array $source_book_pages_by_nid, array $source_menu_links, array $reverse_map, $depth) {
+function _migrate_book_structure_construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, array $source_menu_links, array $reverse_map, $depth) {
 
   $target_book_page_node = node_load($target_book_nid);
   $target_book_page_node->book['nid'] = $target_book_nid;

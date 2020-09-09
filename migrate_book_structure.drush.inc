@@ -13,7 +13,7 @@ function migrate_book_structure_drush_command() {
       'dry-run' => 'Set to TRUE to show changes to be made without altering the target database',
     ),
     'drupal dependencies' => array('migrate', 'book'),
-    'aliases' => array('minpbh'),
+    'aliases' => array('mbspbh'),
   );
 
   $items['migrate-book-structure-post-migrate-internal-links'] = array(
@@ -26,7 +26,7 @@ function migrate_book_structure_drush_command() {
       'dry-run' => 'Set to TRUE to display changes to be made without writing to the database',
     ),
     'drupal dependencies' => array('migrate'),
-    'aliases' => array('minpil'),
+    'aliases' => array('mbspil'),
   );
 
 
