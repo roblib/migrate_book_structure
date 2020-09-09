@@ -1,12 +1,6 @@
-name = "Migrate IslandNarratives"
-description = "IslandNarratives migration data."
+name = "Migrate Book Structure"
+description = "Post-igration re-construct book structure."
 package = "Migration"
 core = 7.x
-dependencies[] = taxonomy
 dependencies[] = book
-dependencies[] = file
-dependencies[] = migrate
 dependencies[] = migrate_d2d
-files[] = islandnarratives.inc
-files[] = bookpage.inc
-files[] = node.inc
