@@ -1,8 +1,8 @@
 <?php
 
-function migrate_islandnarratives_drush_command() {
+function migrate_book_structure_drush_command() {
 
-  $items['migrate-islandnarratives-post-migrate-book-hierarchy'] = array(
+  $items['migrate-book-structure-post-migrate-book-hierarchy'] = array(
     'description' => 'Import book hierarchy from legacy database.',
     'arguments' => array(
     ),
@@ -16,7 +16,7 @@ function migrate_islandnarratives_drush_command() {
     'aliases' => array('minpbh'),
   );
 
-  $items['migrate-islandnarratives-post-migrate-internal-links'] = array(
+  $items['migrate-book-structure-post-migrate-internal-links'] = array(
     'description' => 'Update internal links in body fields.',
     'arguments' => array(
     ),

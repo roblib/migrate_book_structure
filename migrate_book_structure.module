@@ -3,13 +3,13 @@
 /**
  * @file
  *
- * Island Narratives D7 Migration.
+ * Book structure D7 Migration.
  */
 
 
-function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
+function drush_migrate_book_structure_post_migrate_book_hierarchy() {
 
-  list($map, $reverse_map) = islandnarratives_migrate_get_node_map();
+  list($map, $reverse_map) = _migrate_book_structure_get_node_map();
 
   $source_books_results = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
     ->select('book', 'b')
@@ -39,7 +39,7 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
     $source_menu_links[$menu_link_result->mlid] = $menu_link_result;
   }
 
-  $max_depth = _islandnarratives_book_get_max_depth();
+  $max_depth = _migrate_book_structure_get_max_depth();
 
   for ($depth = 1; $depth <= $max_depth; $depth++) {
 
@@ -58,7 +58,7 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
 
       $target_book_nid = $reverse_map[$source_book->source_book_page_id];
       $target_book_bid = $reverse_map[$source_book->source_book_id];
-      _construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, $map, $source_book_pages_by_nid, $source_menu_links, $reverse_map, $depth);
+      _migrate_book_structure_construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, $map, $source_book_pages_by_nid, $source_menu_links, $reverse_map, $depth);
     }
   }
 }
@@ -66,7 +66,7 @@ function drush_migrate_islandnarratives_post_migrate_book_hierarchy() {
 /**
  * @return array
  */
-function islandnarratives_migrate_get_node_map() {
+function _migrate_book_structure_get_node_map() {
   $map = array();
   $reverse_map = array();
 
@@ -85,7 +85,7 @@ function islandnarratives_migrate_get_node_map() {
   return array($map, $reverse_map);
 }
 
-function _islandnarratives_book_get_max_depth() {
+function _migrate_book_structure_get_max_depth() {
   $max_depth_query = Database::getConnection('default', drush_get_option('dbconnection', 'cap'))
     ->select('menu_links', 'ml')
     //->fields('ml', array('depth'))
@@ -103,7 +103,7 @@ function _islandnarratives_book_get_max_depth() {
  * @param array $reverse_map
  * @throws Exception
  */
-function _construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, array $map, array $source_book_pages_by_nid, array $source_menu_links, array $reverse_map, $depth) {
+function _migrate_book_structure_construct_book_node_with_parent($source_book, $target_book_bid, $target_book_nid, array $map, array $source_book_pages_by_nid, array $source_menu_links, array $reverse_map, $depth) {
 
   $target_book_page_node = node_load($target_book_nid);
   $target_book_page_node->book['nid'] = $target_book_nid;
@@ -136,17 +136,17 @@ function _construct_book_node_with_parent($source_book, $target_book_bid, $targe
  * and do a table lookup to replace them with relative internal
  * links to the migrated nodes.
  */
-function drush_migrate_islandnarratives_post_migrate_internal_links() {
+function drush_migrate_book_structure_post_migrate_internal_links() {
   // Construct a lookup map from the migration tables.
-  list($map, $reverse_map) = islandnarratives_migrate_get_node_map();
+  list($map, $reverse_map) = _migrate_book_structure_get_node_map();
 
   foreach ($map as $nid => $source_nid) {
     $node = node_load($nid);
     $body_items = field_get_items('node', $node, 'body');
 
-    $updated_summary = _migrate_islandnarratives_replace_urls_in_text($body_items[0]['summary'], $reverse_map);
+    $updated_summary = _migrate_book_structure_replace_urls_in_text($body_items[0]['summary'], $reverse_map);
 
-    $updated_body = _migrate_islandnarratives_replace_urls_in_text($body_items[0]['value'], $reverse_map);
+    $updated_body = _migrate_book_structure_replace_urls_in_text($body_items[0]['value'], $reverse_map);
 
     if (!drush_get_option('dry-run', FALSE)) {
       $node->body[$node->language][0]['summary'] = $updated_summary;
@@ -163,7 +163,7 @@ function drush_migrate_islandnarratives_post_migrate_internal_links() {
  *   Map of source nids to nids on the new site.
  * @return DomDocument
  */
-function _migrate_islandnarratives_replace_urls_in_text($value, $reverse_map) {
+function _migrate_book_structure_replace_urls_in_text($value, $reverse_map) {
   if (empty($value)) {
     return $value;
   }
