@@ -63,6 +63,24 @@ function drush_migrate_book_structure_post_migrate_book_hierarchy() {
   }
 }
 
+function _migrate_book_structure_get_file_map() {
+  $filemap_result = Database::getConnection('default', 'default')
+    ->select('migrate_map_' . drush_get_option('migration') . 'file', 'm')
+    ->fields('m', array('sourceid1'))
+    ->execute()->fetchAll();
+
+  $source_files_results = Database::getConnection('default', drush_get_option('dbconnection'))
+    ->select('files', 'f')
+    ->fields('f', array('filename', 'filepath'))
+    ->execute()->fetchAll();
+
+  $source_files = array();
+  foreach ($source_files_results as $source_files_result) {
+    $source_files[$source_files_result['filepath']] = $source_files_result['filename'];
+  }
+  return $source_files;
+}
+
 /**
  * @return array
  */
@@ -164,7 +182,29 @@ function drush_migrate_book_structure_post_migrate_internal_links() {
   }
 }
 
-/**
+function drush_migrate_book_structure_post_migrate_image_urls() {
+  // Construct a lookup map from the migration tables.
+  list($map, $reverse_map) = _migrate_book_structure_get_node_map();
+  $filename_list = _migrate_book_structure_get_file_map();
+  foreach ($map as $nid => $source_nid) {
+    $node = node_load($nid);
+    $body_items = field_get_items('node', $node, 'body');
+
+    $updated_summary = _migrate_book_structure_replace_urls_in_text($body_items[0]['summary'], $reverse_map);
+
+    $updated_body = _migrate_book_structure_replace_urls_in_text($body_items[0]['value'], $reverse_map);
+
+    if (!drush_get_option('dry-run', FALSE)) {
+      $node->body[$node->language][0]['summary'] = $updated_summary;
+      $node->body[$node->language][0]['value'] = $updated_body;
+      node_save($node);
+    }
+  }
+}
+
+
+
+  /**
  * @param $value
  *   String to replace links in.
  * @param $reverse_map
@@ -226,6 +266,25 @@ function _migrate_book_structure_replace_urls_in_text($value, $reverse_map) {
       $source_link->setAttribute('href', $replacement_url);
       drupal_set_message("Replace $source_url with $replacement_url.", "status");
     }
+    else {
+      drupal_set_message('Unprocessed link URL: ' . $source_url, 'status');
+    }
+  }
+  return $source_doc->saveHTML();
+}
+
+function _migrate_book_structure_replace_image_urls_in_text($value, $filepath, $filename) {
+
+  $source_doc = new DomDocument();
+  $source_doc->loadHTML($value);
+
+  foreach ($source_doc->getElementsByTagName('img') as $source_link) {
+    $source_url = $source_link->getAttribute('src');
+
+    $source_link->setAttribute('href', $replacement_url);
+    drupal_set_message("Replace $source_url with $replacement_url.", "status");
+
+
     else {
       drupal_set_message('Unprocessed link URL: ' . $source_url, 'status');
     }

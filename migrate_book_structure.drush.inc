@@ -22,6 +22,7 @@ function migrate_book_structure_drush_command() {
     ),
     'options' => array(
       'migration' => 'Machine name of migration to repair.',
+      'dbconnection' => 'Source database connection in settings.php',
       'types' => 'Comma-separated list of content type machine names',
       'dry-run' => 'Set to TRUE to display changes to be made without writing to the database',
     ),
@@ -29,6 +30,19 @@ function migrate_book_structure_drush_command() {
     'aliases' => array('mbspil'),
   );
 
+  $items['migrate-book-structure-post-migrate-image-urls'] = array(
+    'description' => 'Update image tag src URLs of migrated files in body fields.',
+    'arguments' => array(
+    ),
+    'options' => array(
+      'migration' => 'Machine name of migration to repair.',
+      'dbconnection' => 'Source database connection in settings.php',
+      'types' => 'Comma-separated list of content type machine names',
+      'dry-run' => 'Set to TRUE to display changes to be made without writing to the database',
+    ),
+    'drupal dependencies' => array('migrate'),
+    'aliases' => array('mbspiu'),
+  );
 
   return $items;
 
