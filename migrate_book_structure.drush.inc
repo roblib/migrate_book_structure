@@ -36,6 +36,7 @@ function migrate_book_structure_drush_command() {
     ),
     'options' => array(
       'migration' => 'Machine name of migration to repair.',
+      'filemigration' => 'Machine name of file migration, if different from node migration id.',
       'dbconnection' => 'Source database connection in settings.php',
       'types' => 'Comma-separated list of content type machine names',
       'dry-run' => 'Set to TRUE to display changes to be made without writing to the database',

@@ -9,7 +9,7 @@
 
 function drush_migrate_book_structure_post_migrate_book_hierarchy() {
 
-  list($map, $reverse_map) = _migrate_book_structure_get_node_map();
+  list($map, $reverse_map) = _migrate_book_structure_get_migrate_map();
 
   $source_books_results = Database::getConnection('default', drush_get_option('dbconnection'))
     ->select('book', 'b')
@@ -63,32 +63,63 @@ function drush_migrate_book_structure_post_migrate_book_hierarchy() {
   }
 }
 
-function _migrate_book_structure_get_file_map() {
-  $filemap_result = Database::getConnection('default', 'default')
-    ->select('migrate_map_' . drush_get_option('migration') . 'file', 'm')
-    ->fields('m', array('sourceid1'))
-    ->execute()->fetchAll();
+function _migrate_book_structure_get_file_map($migration_id = FALSE) {
+  $filemap_query = Database::getConnection('default', 'default')
+    ->select('migrate_map_' . $migration_id . 'file', 'm')
+    ->fields('m', array('sourceid1', 'destid1'));
+  $filemap_query->join('file_managed', 'f', 'm.destid1 = f.fid');
+  $filemap_query->addField('f', 'filename', 'dest_filename');
+  $filemap_query->addField('f', 'uri', 'dest_filepath');
+  $dest_files_results = $filemap_query->execute()->fetchAll();
+
+  // Index results by fid.
+  $dest_files = array();
+
+  $dest_map = array();
+  foreach ($dest_files_results as $dest_files_result) {
+    $dest_files[$dest_files_result->destid1] = array(
+      'dest_filepath' => $dest_files_result->dest_filepath,
+      'dest_filename' => $dest_files_result->dest_filename,
+      'dest_fid' => $dest_files_result->destid1
+    );
+    // Make a lookup array for source fid.
+    $dest_map[$dest_files_result->destid1] = $dest_files_result->sourceid1;
+  }
 
   $source_files_results = Database::getConnection('default', drush_get_option('dbconnection'))
     ->select('files', 'f')
-    ->fields('f', array('filename', 'filepath'))
+    ->fields('f', array('fid', 'filename', 'filepath'))
     ->execute()->fetchAll();
 
+  // Index results by fid.
   $source_files = array();
   foreach ($source_files_results as $source_files_result) {
-    $source_files[$source_files_result['filepath']] = $source_files_result['filename'];
+    $source_files[$source_files_result->fid] = array(
+      'source_filepath' => $source_files_result->filepath,
+      'source_filename' => $source_files_result->filename,
+    );
   }
-  return $source_files;
+
+  $file_map = array();
+  foreach ($dest_files as $dest_file) {
+    $file_map[$dest_file['dest_fid']] = array(
+      'source_filename' => $source_files[$dest_map[$dest_file['dest_fid']]]['source_filename'],
+      'source_filepath' =>  $source_files[$dest_map[$dest_file['dest_fid']]]['source_filepath'],
+      'dest_filename' => $dest_file['dest_filename'],
+      'dest_filepath' => $dest_file['dest_filepath'],
+    );
+  }
+  return $file_map;
 }
 
 /**
  * @return array
  */
-function _migrate_book_structure_get_node_map() {
+function _migrate_book_structure_get_migrate_map($types = FALSE) {
   $map = array();
   $reverse_map = array();
 
-  $content_types = explode(',', drush_get_option('types', 'page,book'));
+  $content_types = !empty($types) ? $types : explode(',', drush_get_option('types', 'page,book'));
 
   foreach ($content_types as $content_type) {
     $map_result = Database::getConnection('default', 'default')
@@ -164,7 +195,7 @@ function _migrate_book_structure_construct_book_node_with_parent($source_book, $
  */
 function drush_migrate_book_structure_post_migrate_internal_links() {
   // Construct a lookup map from the migration tables.
-  list($map, $reverse_map) = _migrate_book_structure_get_node_map();
+  list($map, $reverse_map) = _migrate_book_structure_get_migrate_map();
 
   foreach ($map as $nid => $source_nid) {
     $node = node_load($nid);
@@ -183,16 +214,18 @@ function drush_migrate_book_structure_post_migrate_internal_links() {
 }
 
 function drush_migrate_book_structure_post_migrate_image_urls() {
+  $file_migration = drush_get_option('filemigration') ? drush_get_option('filemigration') : drush_get_option('migration');
+
   // Construct a lookup map from the migration tables.
-  list($map, $reverse_map) = _migrate_book_structure_get_node_map();
-  $filename_list = _migrate_book_structure_get_file_map();
+  list($map, $reverse_map) = _migrate_book_structure_get_migrate_map();
+  $file_map = _migrate_book_structure_get_file_map($file_migration);
   foreach ($map as $nid => $source_nid) {
     $node = node_load($nid);
     $body_items = field_get_items('node', $node, 'body');
 
-    $updated_summary = _migrate_book_structure_replace_urls_in_text($body_items[0]['summary'], $reverse_map);
+    $updated_summary = _migrate_book_structure_replace_image_urls_in_text($body_items[0]['summary'], $file_map);
 
-    $updated_body = _migrate_book_structure_replace_urls_in_text($body_items[0]['value'], $reverse_map);
+    $updated_body = _migrate_book_structure_replace_image_urls_in_text($body_items[0]['value'], $file_map);
 
     if (!drush_get_option('dry-run', FALSE)) {
       $node->body[$node->language][0]['summary'] = $updated_summary;
@@ -273,21 +306,33 @@ function _migrate_book_structure_replace_urls_in_text($value, $reverse_map) {
   return $source_doc->saveHTML();
 }
 
-function _migrate_book_structure_replace_image_urls_in_text($value, $filepath, $filename) {
+function _migrate_book_structure_replace_image_urls_in_text($value, $file_list) {
 
   $source_doc = new DomDocument();
   $source_doc->loadHTML($value);
 
   foreach ($source_doc->getElementsByTagName('img') as $source_link) {
     $source_url = $source_link->getAttribute('src');
+    $replacement_uri = _migrate_book_structure_get_new_file_url($source_url, $file_list);
+    if ($wrapper = file_stream_wrapper_get_instance_by_uri($replacement_uri)) {
 
-    $source_link->setAttribute('href', $replacement_url);
-    drupal_set_message("Replace $source_url with $replacement_url.", "status");
-
-
-    else {
-      drupal_set_message('Unprocessed link URL: ' . $source_url, 'status');
+      $replacement_url = '/' . $wrapper->getDirectoryPath() . '/' . file_uri_target($replacement_uri);
+      $source_link->setAttribute('src', $replacement_url);
+      drupal_set_message("Replace $source_url with $replacement_url.", "status");
     }
+
+//    else {
+//      drupal_set_message('Unprocessed link URL: ' . $source_url, 'status');
+//    }
   }
   return $source_doc->saveHTML();
+}
+
+function _migrate_book_structure_get_new_file_url($source_url, $file_list) {
+  // TODO: This is O(n^2), should be made more efficient.
+  foreach ($file_list as $file) {
+    if (strpos($source_url, $file['source_filepath']) !== FALSE) {
+      return $file['dest_filepath'];
+    }
+  }
 }
