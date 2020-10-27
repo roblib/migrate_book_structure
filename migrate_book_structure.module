@@ -219,6 +219,10 @@ function drush_migrate_book_structure_post_migrate_image_urls() {
   // Construct a lookup map from the migration tables.
   list($map, $reverse_map) = _migrate_book_structure_get_migrate_map();
   $file_map = _migrate_book_structure_get_file_map($file_migration);
+  if ($single_node = drush_get_option('node')) {
+    $map = [$single_node => $map[$single_node]];
+  }
+
   foreach ($map as $nid => $source_nid) {
     $node = node_load($nid);
     $body_items = field_get_items('node', $node, 'body');
@@ -331,8 +335,32 @@ function _migrate_book_structure_replace_image_urls_in_text($value, $file_list) 
 function _migrate_book_structure_get_new_file_url($source_url, $file_list) {
   // TODO: This is O(n^2), should be made more efficient.
   foreach ($file_list as $file) {
-    if (strpos($source_url, $file['source_filepath']) !== FALSE) {
+    if (strpos($source_url, $file['source_filepath']) !== FALSE
+      || strpos(str_replace('%20', ' ', $source_url), $file['source_filepath'])) {
       return $file['dest_filepath'];
+    }
+  }
+}
+
+function drush_migrate_book_structure_get_tags_in_body() {
+  $query = new EntityFieldQuery('node');
+    $results = $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', explode(',', drush_get_option('types')), 'IN')
+    ->execute();
+  foreach($results['node'] as $result) {
+    $nid = $result->nid;
+    $node = node_load($nid);
+
+    $body_items = field_get_items('node', $node, 'body');
+    foreach (array('summary', 'value') as $field) {
+      $content = $body_items[0][$field];
+
+      $source_doc = new DomDocument();
+      $source_doc->loadHTML($content);
+
+      foreach ($source_doc->getElementsByTagName(drush_get_option('tag')) as $source_link) {
+        print_r($source_link->ownerDocument->saveHTML($source_link) . "\n\n");
+      }
     }
   }
 }

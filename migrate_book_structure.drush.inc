@@ -40,11 +40,23 @@ function migrate_book_structure_drush_command() {
       'dbconnection' => 'Source database connection in settings.php',
       'types' => 'Comma-separated list of content type machine names',
       'dry-run' => 'Set to TRUE to display changes to be made without writing to the database',
+      'node' => 'Run in single node.',
     ),
     'drupal dependencies' => array('migrate'),
     'aliases' => array('mbspiu'),
   );
 
-  return $items;
+  $items['migrate-book-structure-get-tags-in-body'] = array(
+    'description' => 'Export all HTML elements of the given tag from body and summary content',
+    'arguments' => array(
+    ),
+    'options' => array(
+      'types' => 'Comma-separated list of content type machine names',
+      'tag' => 'Tag to extract.',
+      'node' => 'Run in single node.',
+    ),
+    'aliases' => array('mbsgtb'),
+  );
 
+  return $items;
 }
